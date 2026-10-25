@@ -1,0 +1,119 @@
+from dataclasses import dataclass
+
+
+# ---------- Заглушки (в реальном проекте уже есть) ----------
+@dataclass
+class Master:
+    master_id: int
+
+
+@dataclass
+class Service:
+    service_id: int
+
+
+MASTERS = {1: Master(1), 2: Master(2)}
+SERVICES = {1: Service(1), 2: Service(2)}
+
+
+def get_master(master_id: int) -> Master | None:
+    return MASTERS.get(master_id)
+
+
+def get_service(service_id: int) -> Service | None:
+    return SERVICES.get(service_id)
+
+
+# ---------- Задание 1: класс Appointment ----------
+class Appointment:
+    def __init__(self, appointment_id: int, client_name: str,
+                 master_id: int, service_id: int, time: str):
+        self.id = appointment_id
+        self.client_name = client_name
+        self.master_id = master_id
+        self.service_id = service_id
+        self.time = time
+
+    def __repr__(self):
+        return (f"Appointment(id={self.id}, client_name={self.client_name!r}, "
+                f"master_id={self.master_id}, service_id={self.service_id}, "
+                f"time={self.time!r})")
+
+
+# ---------- Задание 2: бизнес-правило рабочего времени ----------
+WORK_START = "08:00"
+WORK_END = "20:00"
+
+
+def is_valid_working_time(time: str) -> bool:
+    """Проверяет, что время в формате HH:MM и попадает в рабочие часы."""
+    try:
+        hours_str, minutes_str = time.split(":")
+        hours = int(hours_str)
+        minutes = int(minutes_str)
+    except (ValueError, AttributeError):
+        return False
+
+    if not (0 <= hours < 24 and 0 <= minutes < 60):
+        return False
+    # сравниваем как строки в формате HH:MM (лексикографически корректно)
+    return WORK_START <= f"{hours:02d}:{minutes:02d}" < WORK_END
+
+
+appointments: list[Appointment] = []
+
+
+def create_appointment(client_name: str,
+                       master_id: int,
+                       service_id: int,
+                       time: str) -> Appointment | None:
+    master = get_master(master_id)
+    service = get_service(service_id)
+
+    # все поля должны быть заполнены
+    if not client_name or not time:
+        return None
+    if master is None or service is None:
+        return None
+
+    # Задание 2: проверка рабочего времени
+    if not is_valid_working_time(time):
+        return None
+
+    appointment = Appointment(
+        appointment_id=len(appointments) + 1,
+        client_name=client_name,
+        master_id=master.master_id,
+        service_id=service.service_id,
+        time=time,
+    )
+    appointments.append(appointment)
+    return appointment
+
+
+# ---------- Проверка ----------
+if __name__ == "__main__":
+    first_appointment = create_appointment("Иванова А.А.", 1, 1, "10:00")
+    second_appointment = create_appointment("Петрова А.А.", 1, 1, "11:00")
+
+    print("Список записей:")
+    for appointment in appointments:
+        print(appointment.client_name, appointment.time)
+
+    print("\n--- Проверка некорректных данных ---")
+
+    # Пустое имя клиента
+    no_correct_appointment = create_appointment("", 1, 1, "12:00")
+    print("Пустое имя -> записей:", len(appointments))  # ожидаем 2
+
+    # Время вне рабочих часов
+    no_correct_appointment = create_appointment("Сидорова А.А.", 1, 1, "00:00")
+    print("Время 00:00 -> записей:", len(appointments))  # ожидаем 2
+
+    # Время 20:00 (граница — уже не рабочее, так как "до 20:00")
+    no_correct_appointment = create_appointment("Сидорова А.А.", 1, 1, "20:00")
+    print("Время 20:00 -> записей:", len(appointments))  # ожидаем 2
+
+    # Некорректный мастер
+    no_correct_appointment = create_appointment("Сидорова А.А.", 99, 1, "12:00")
+    print("Неверный мастер -> записей:", len(appointments))  # ожидаем 2
