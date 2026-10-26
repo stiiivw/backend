@@ -1,0 +1,85 @@
+# main.py
+from fastapi import FastAPI, Depends, HTTPException, Query
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from pydantic import BaseModel
+from typing import List, Optional
+
+# ---------- 1. БД ----------
+engine = create_engine(
+    "sqlite:///./salon.db",
+    connect_args={"check_same_thread": False},
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+
+# ---------- 2. Модель Master ----------
+class Master(Base):
+    __tablename__ = "masters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    specialization = Column(String, nullable=False)
+
+
+Base.metadata.create_all(bind=engine)
+
+
+# ---------- 2.1. Автозаполнение тестовыми данными ----------
+def seed_data():
+    db = SessionLocal()
+    try:
+        if db.query(Master).count() == 0:
+            db.add_all([
+                Master(name="Анна", specialization="Парикмахер"),
+                Master(name="Мария", specialization="Визажист"),
+            ])
+            db.commit()
+    finally:
+        db.close()
+
+
+seed_data()   # <-- вызывается при старте приложения
+
+
+# ---------- 3. Схема ответа ----------
+class MasterOut(BaseModel):
+    id: int
+    name: str
+    specialization: str
+
+    class Config:
+        from_attributes = True   # Pydantic v2 (для v1: orm_mode = True)
+
+
+# ---------- 4. Зависимость ----------
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# ---------- 5. Приложение ----------
+app = FastAPI()
+
+
+@app.get("/masters", response_model=List[MasterOut])
+def get_masters(
+    specialization: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Master)
+    if specialization:
+        query = query.filter(Master.specialization == specialization)
+    return query.all()
+
+
+@app.get("/masters/{master_id}", response_model=MasterOut)
+def get_master(master_id: int, db: Session = Depends(get_db)):
+    master = db.query(Master).filter(Master.id == master_id).first()
+    if master is None:
+        raise HTTPException(status_code=404, detail="Master not found")
+    return master
