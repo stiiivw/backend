@@ -1,0 +1,68 @@
+from fastapi import FastAPI, HTTPException
+
+app = FastAPI()
+
+# --- данные ---
+categories = [
+    {"id": 1, "name": "Стрижки и укладки"},
+    {"id": 2, "name": "Маникюр и педикюр"},
+    {"id": 3, "name": "Брови и ресницы"},
+    {"id": 4, "name": "Спа-процедуры"},
+]
+
+services = [
+    {"id": 1, "name": "Стрижка", "category_id": 1},
+    {"id": 2, "name": "Укладка", "category_id": 1},
+    {"id": 3, "name": "Окрашивание", "category_id": 1},
+    {"id": 4, "name": "Ботокс", "category_id": 1},
+    {"id": 5, "name": "Уход", "category_id": 1},
+    {"id": 6, "name": "Маникюр", "category_id": 2},
+    {"id": 7, "name": "Педикюр", "category_id": 2},
+    {"id": 8, "name": "Гель-лак", "category_id": 2},
+    {"id": 9, "name": "Наращивание", "category_id": 2},
+    {"id": 10, "name": "Дизайн", "category_id": 2},
+    {"id": 11, "name": "Коррекция бровей", "category_id": 3},
+    {"id": 12, "name": "Окрашивание ресниц", "category_id": 3},
+    {"id": 13, "name": "Ламинирование", "category_id": 3},
+    {"id": 14, "name": "Наращивание ресниц", "category_id": 3},
+    {"id": 15, "name": "Массаж лица", "category_id": 4},
+    {"id": 16, "name": "Пилинг", "category_id": 4},
+    {"id": 17, "name": "Обёртывание", "category_id": 4},
+    {"id": 18, "name": "Чистка лица", "category_id": 4},
+]
+
+
+# --- Задание 1: список категорий с количеством услуг ---
+@app.get("/categories")
+def get_categories():
+    result = []
+    for category in categories:
+        services_count = sum(
+            1 for service in services if service["category_id"] == category["id"]
+        )
+        result.append({
+            "id": category["id"],
+            "name": category["name"],
+            "servicesCount": services_count,
+        })
+    return result
+
+
+# --- Задание 2: информация по конкретной категории ---
+@app.get("/categories/{category_id}")
+def get_category(category_id: int):
+    category = next(
+        (c for c in categories if c["id"] == category_id),
+        None,
+    )
+    if category is None:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    services_count = sum(
+        1 for service in services if service["category_id"] == category_id
+    )
+    return {
+        "id": category["id"],
+        "name": category["name"],
+        "servicesCount": services_count,
+    }
